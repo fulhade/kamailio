@@ -4223,6 +4223,12 @@ static void ds_options_callback(
 	/* The param is a (void*) Pointer to str, so we need to cast it back */
 	group_str = (str *)ps->param;
 
+	LM_INFO("DEBUG OPTIONS: group_str=%p, len=%d, s=%p, content='%.*s'\n",
+			group_str, group_str ? group_str->len : -1,
+			group_str ? group_str->s : NULL,
+			group_str && group_str->s ? group_str->len : 0,
+			group_str && group_str->s ? group_str->s : "NULL");
+
 	/* The SIP-URI is taken from the Transaction.
 	 * Remove the "To: <" (s+5) and the trailing >+new-line (s - 5 (To: <)
 	 * - 3 (>\r\n)). */
