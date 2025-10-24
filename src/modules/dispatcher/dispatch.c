@@ -4258,6 +4258,11 @@ static void ds_options_callback(
 	 * through RPC or reload */
 	if(ds_probing_mode == DS_PROBE_ONLYFLAGGED
 			&& !(ds_get_state(group_str, &uri, &iuid) & DS_PROBING_DST)) {
+		/* Free the allocated setid copy before early return */
+		if(group_str) {
+			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", group_str);
+			shm_free(group_str);
+		}
 		return;
 	}
 
@@ -4290,6 +4295,12 @@ static void ds_options_callback(
 			LM_ERR("Setting the probing state failed (%.*s, group %.*s)\n",
 					uri.len, uri.s, group_str->len, group_str->s);
 		}
+	}
+
+	/* Free the allocated setid copy */
+	if(group_str) {
+		LM_INFO("DEBUG: Freeing setid copy at %p\n", group_str);
+		shm_free(group_str);
 	}
 
 	return;
@@ -4377,10 +4388,21 @@ void ds_ping_set(ds_set_t *node)
 			 * int request(str* m, str* ruri, str* to, str* from, str* h,
 			 *		str* b, str *oburi,
 			 *		transaction_cb cb, void* cbp); */
+			/* Allocate persistent copy of setid for callback */
+			str *setid_copy = (str*)shm_malloc(sizeof(str) + node->id.len + 1);
+			if(setid_copy == NULL) {
+				LM_ERR("failed to allocate memory for setid copy\n");
+				continue;
+			}
+			setid_copy->len = node->id.len;
+			setid_copy->s = (char*)setid_copy + sizeof(str);
+			memcpy(setid_copy->s, node->id.s, node->id.len);
+			setid_copy->s[node->id.len] = '\0';
+
 			LM_INFO("DEBUG PING: Sending OPTIONS with setid - len=%d, s=%p, content='%.*s'\n",
-					node->id.len, node->id.s, node->id.len, node->id.s ? node->id.s : "NULL");
+					setid_copy->len, setid_copy->s, setid_copy->len, setid_copy->s ? setid_copy->s : "NULL");
 			set_uac_req(&uac_r, &ds_ping_method, 0, 0, 0, TMCB_LOCAL_COMPLETED,
-					ds_options_callback, (void *)&node->id);
+					ds_options_callback, (void *)setid_copy);
 			if(node->dlist[j].attrs.ping_socket.s != NULL
 					&& node->dlist[j].attrs.ping_socket.len > 0) {
 				uac_r.ssock = &node->dlist[j].attrs.ping_socket;
