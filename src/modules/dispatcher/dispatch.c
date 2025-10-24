@@ -4217,6 +4217,11 @@ static void ds_options_callback(
 	/* The param is a (void*) Pointer, so we need to dereference it and
 	 *  cast it to an int. */
 	group = (int)(long)(*ps->param);
+
+	/* Convert integer group to string for function calls */
+	str group_str;
+	group_str.s = int2str(group, &group_str.len);
+
 	/* The SIP-URI is taken from the Transaction.
 	 * Remove the "To: <" (s+5) and the trailing >+new-line (s - 5 (To: <)
 	 * - 3 (>\r\n)). */
@@ -4225,7 +4230,7 @@ static void ds_options_callback(
 	LM_DBG("OPTIONS-Request was finished with code %d (to %.*s, group %d)\n",
 			ps->code, uri.len, uri.s, group);
 	if(ds_ping_latency_stats) {
-		ds_update_latency(group, &uri, ps->code);
+		ds_update_latency(&group_str, &uri, ps->code);
 	}
 
 	memset(&rctx, 0, sizeof(ds_rctx_t));
@@ -4245,7 +4250,7 @@ static void ds_options_callback(
 	/* Check if in the meantime someone disabled probing of the target
 	 * through RPC or reload */
 	if(ds_probing_mode == DS_PROBE_ONLYFLAGGED
-			&& !(ds_get_state(group, &uri, &iuid) & DS_PROBING_DST)) {
+			&& !(ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)) {
 		return;
 	}
 
@@ -4257,12 +4262,12 @@ static void ds_options_callback(
 		state = 0;
 		if(ds_probing_mode == DS_PROBE_ALL
 				|| ((ds_probing_mode == DS_PROBE_ONLYFLAGGED)
-						&& (ds_get_state(group, &uri, &iuid) & DS_PROBING_DST)))
+						&& (ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)))
 			state |= DS_PROBING_DST;
 
 		/* Check if in the meantime someone disabled the target through RPC */
-		if(!(ds_get_state(group, &uri, &iuid) & DS_DISABLED_DST)
-				&& ds_update_state(fmsg, group, &uri, &iuid, state, 0, &rctx)
+		if(!(ds_get_state(&group_str, &uri, &iuid) & DS_DISABLED_DST)
+				&& ds_update_state(fmsg, &group_str, &uri, &iuid, state, 0, &rctx)
 						   != 0) {
 			LM_ERR("Setting the state failed (%.*s, group %d)\n", uri.len,
 					uri.s, group);
@@ -4272,8 +4277,8 @@ static void ds_options_callback(
 		if(ds_probing_mode != DS_PROBE_NONE)
 			state |= DS_PROBING_DST;
 		/* Check if in the meantime someone disabled the target through RPC */
-		if(!(ds_get_state(group, &uri, &iuid) & DS_DISABLED_DST)
-				&& ds_update_state(fmsg, group, &uri, &iuid, state, 0, &rctx)
+		if(!(ds_get_state(&group_str, &uri, &iuid) & DS_DISABLED_DST)
+				&& ds_update_state(fmsg, &group_str, &uri, &iuid, state, 0, &rctx)
 						   != 0) {
 			LM_ERR("Setting the probing state failed (%.*s, group %d)\n",
 					uri.len, uri.s, group);
@@ -4411,8 +4416,8 @@ void ds_ping_set(ds_set_t *node)
 			ftag.len = snprintf(ftbuf, 64, "%.*s-%s", node->dlist[j].suid.len,
 					node->dlist[j].suid.s, ds_rand_str4());
 			if(ftag.len <= 0) {
-				LM_ERR("failed to generate the from-tag - set #%d URI %.*s\n",
-						node->id, node->dlist[j].uri.len, node->dlist[j].uri.s);
+				LM_ERR("failed to generate the from-tag - set #%.*s URI %.*s\n",
+						node->id.len, node->id.s, node->dlist[j].uri.len, node->dlist[j].uri.s);
 				continue;
 			} else {
 				ftag.s = ftbuf;
