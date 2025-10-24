@@ -1187,7 +1187,10 @@ int ds_load_list(char *lfile)
 		if(ds_ping_latency_stats && ds_retain_latency_stats) {
 			latency_stats = latency_stats_find(id, &uri);
 		}
-		if(add_dest2list(id, uri, flags, priority, &attrs, *ds_next_idx, &setn,
+		/* Convert integer ID from database to string */
+		str id_str;
+		id_str.s = int2str(id, &id_str.len);
+		if(add_dest2list(&id_str, uri, flags, priority, &attrs, *ds_next_idx, &setn,
 				   0, latency_stats)
 				== NULL) {
 			LM_WARN("unable to add destination %.*s to set %d -- skipping\n",
@@ -1447,7 +1450,10 @@ int ds_load_db(void)
 		if(ds_ping_latency_stats && ds_retain_latency_stats) {
 			latency_stats = latency_stats_find(id, &uri);
 		}
-		if(add_dest2list(id, uri, flags, priority, &attrs, *ds_next_idx, &setn,
+		/* Convert integer ID from database to string */
+		str id_str;
+		id_str.s = int2str(id, &id_str.len);
+		if(add_dest2list(&id_str, uri, flags, priority, &attrs, *ds_next_idx, &setn,
 				   0, latency_stats)
 				== NULL) {
 			dest_errs++;
