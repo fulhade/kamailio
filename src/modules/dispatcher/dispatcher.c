@@ -650,13 +650,14 @@ static int w_ds_select_addr(
 		return -1;
 
 	GET_VALUE("destination set", set, s, s_set, set_flags);
-	if(!(set_flags & PARAM_INT)) {
-		if(set_flags & PARAM_STR)
-			LM_ERR("unable to get destination set from [%.*s]\n", s_set.len,
-					s_set.s);
-		else
+	if(!(set_flags & PARAM_STR)) {
+		if(set_flags & PARAM_INT) {
+			/* Convert integer to string for backward compatibility */
+			s_set.s = int2str(s, &s_set.len);
+		} else {
 			LM_ERR("unable to get destination set\n");
-		return -1;
+			return -1;
+		}
 	}
 	GET_VALUE("algorithm", alg, a, s_algo, algo_flags);
 	if(!(algo_flags & PARAM_INT)) {
@@ -682,7 +683,7 @@ static int w_ds_select_addr(
 		l = -1; /* will be casted to a rather big unsigned value */
 	}
 
-	return ds_select_dst_limit(msg, s, a, (unsigned int)l, mode);
+	return ds_select_dst_limit(msg, &s_set, a, (unsigned int)l, mode);
 }
 
 /**
