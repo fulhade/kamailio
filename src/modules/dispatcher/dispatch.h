@@ -231,7 +231,7 @@ typedef struct _ds_latency_stats {
 } ds_latency_stats_t;
 
 void latency_stats_init(ds_latency_stats_t *latency_stats, int latency, int count);
-ds_latency_stats_t *latency_stats_find(int group, str *address);
+ds_latency_stats_t *latency_stats_find(str *group, str *address);
 
 #define DS_OCDIST_SIZE 104
 typedef struct _ds_ocdata {
@@ -323,6 +323,8 @@ int ds_manage_routes(sip_msg_t *msg, ds_select_state_t *rstate);
 
 ds_rctx_t *ds_get_rctx(void);
 unsigned int ds_get_hash(str *x, str *y);
+
+int ds_str_cmp(str *a, str *b);
 
 int ds_oc_set_attrs(
 		sip_msg_t *msg, str *setid, str *uri, int irval, int itval, int isval);

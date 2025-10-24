@@ -798,8 +798,8 @@ static int ki_ds_select_routes_limit(
 			}
 			vstate.alg = (vstate.alg * 10) + (srules->s[i] - '0');
 		}
-		LM_DBG("routing with setid=%d alg=%d cnt=%d limit=0x%x (%u)\n",
-				vstate.setid, vstate.alg, vstate.cnt, vstate.limit,
+		LM_DBG("routing with setid=%.*s alg=%d cnt=%d limit=0x%x (%u)\n",
+				vstate.setid.len, vstate.setid.s, vstate.alg, vstate.cnt, vstate.limit,
 				vstate.limit);
 
 		vstate.umode = DS_SETOP_XAVP;
@@ -2013,7 +2013,7 @@ int ds_rpc_print_set(
 		rpc->fault(ctx, 500, "Internal error set structure");
 		return -1;
 	}
-	if(rpc->struct_add(sh, "d[", "ID", node->id, "TARGETS", &rh) < 0) {
+	if(rpc->struct_add(sh, "S[", "ID", &node->id, "TARGETS", &rh) < 0) {
 		rpc->fault(ctx, 500, "Internal error creating set id");
 		return -1;
 	}
