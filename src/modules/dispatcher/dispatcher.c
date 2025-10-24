@@ -2013,7 +2013,7 @@ int ds_rpc_print_set(
 		rpc->fault(ctx, 500, "Internal error set structure");
 		return -1;
 	}
-	if(rpc->struct_add(sh, "S[", "ID", &node->id, "TARGETS", &rh) < 0) {
+	if(rpc->struct_add(sh, "s[", "ID", node->id.s, "TARGETS", &rh) < 0) {
 		rpc->fault(ctx, 500, "Internal error creating set id");
 		return -1;
 	}
