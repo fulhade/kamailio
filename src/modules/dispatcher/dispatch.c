@@ -4202,7 +4202,8 @@ int ds_extract_fromhdr_iuid(str *from, str *iuid)
 static void ds_options_callback(
 		struct cell *t, int type, struct tmcb_params *ps)
 {
-	str *group_str = NULL;
+	char *setid_str = NULL;
+	str group_str = {0, 0};
 	str uri = {0, 0};
 	sip_msg_t *fmsg;
 	int state;
@@ -4220,14 +4221,13 @@ static void ds_options_callback(
 
 	fmsg = NULL;
 
-	/* The param is a (void*) Pointer to str, so we need to cast it back */
-	group_str = (str *)ps->param;
+	/* The param is a (void*) Pointer to string, so we need to cast it back */
+	setid_str = (char *)ps->param;
+	group_str.s = setid_str;
+	group_str.len = strlen(setid_str);
 
-	LM_INFO("DEBUG OPTIONS: group_str=%p, len=%d, s=%p, content='%.*s'\n",
-			group_str, group_str ? group_str->len : -1,
-			group_str ? group_str->s : NULL,
-			group_str && group_str->s ? group_str->len : 0,
-			group_str && group_str->s ? group_str->s : "NULL");
+	LM_INFO("DEBUG OPTIONS: setid_str=%p, content='%s', group_str len=%d\n",
+			setid_str, setid_str ? setid_str : "NULL", group_str.len);
 
 	/* The SIP-URI is taken from the Transaction.
 	 * Remove the "To: <" (s+5) and the trailing >+new-line (s - 5 (To: <)
@@ -4235,9 +4235,9 @@ static void ds_options_callback(
 	uri.s = t->to_hdr.s + 5;
 	uri.len = t->to_hdr.len - 8;
 	LM_DBG("OPTIONS-Request was finished with code %d (to %.*s, group %.*s)\n",
-			ps->code, uri.len, uri.s, group_str->len, group_str->s);
+			ps->code, uri.len, uri.s, group_str.len, group_str.s);
 	if(ds_ping_latency_stats) {
-		ds_update_latency(group_str, &uri, ps->code);
+		ds_update_latency(&group_str, &uri, ps->code);
 	}
 
 	memset(&rctx, 0, sizeof(ds_rctx_t));
@@ -4248,7 +4248,7 @@ static void ds_options_callback(
 			rctx.reason = ps->rpl->first_line.u.reply.reason;
 		}
 	}
-	rctx.setid = *group_str;
+	rctx.setid = group_str;
 	ds_rctx_set_uri(&rctx, &uri);
 
 	ds_extract_fromhdr_iuid(&t->from_hdr, &iuid);
@@ -4257,11 +4257,11 @@ static void ds_options_callback(
 	/* Check if in the meantime someone disabled probing of the target
 	 * through RPC or reload */
 	if(ds_probing_mode == DS_PROBE_ONLYFLAGGED
-			&& !(ds_get_state(group_str, &uri, &iuid) & DS_PROBING_DST)) {
+			&& !(ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)) {
 		/* Free the allocated setid copy before early return */
-		if(group_str) {
-			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", group_str);
-			shm_free(group_str);
+		if(setid_str) {
+			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", setid_str);
+			shm_free(setid_str);
 		}
 		return;
 	}
@@ -4274,33 +4274,33 @@ static void ds_options_callback(
 		state = 0;
 		if(ds_probing_mode == DS_PROBE_ALL
 				|| ((ds_probing_mode == DS_PROBE_ONLYFLAGGED)
-						&& (ds_get_state(group_str, &uri, &iuid) & DS_PROBING_DST)))
+						&& (ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)))
 			state |= DS_PROBING_DST;
 
 		/* Check if in the meantime someone disabled the target through RPC */
-		if(!(ds_get_state(group_str, &uri, &iuid) & DS_DISABLED_DST)
-				&& ds_update_state(fmsg, group_str, &uri, &iuid, state, 0, &rctx)
+		if(!(ds_get_state(&group_str, &uri, &iuid) & DS_DISABLED_DST)
+				&& ds_update_state(fmsg, &group_str, &uri, &iuid, state, 0, &rctx)
 						   != 0) {
 			LM_ERR("Setting the state failed (%.*s, group %.*s)\n", uri.len,
-					uri.s, group_str->len, group_str->s);
+					uri.s, group_str.len, group_str.s);
 		}
 	} else {
 		state = DS_TRYING_DST;
 		if(ds_probing_mode != DS_PROBE_NONE)
 			state |= DS_PROBING_DST;
 		/* Check if in the meantime someone disabled the target through RPC */
-		if(!(ds_get_state(group_str, &uri, &iuid) & DS_DISABLED_DST)
-				&& ds_update_state(fmsg, group_str, &uri, &iuid, state, 0, &rctx)
+		if(!(ds_get_state(&group_str, &uri, &iuid) & DS_DISABLED_DST)
+				&& ds_update_state(fmsg, &group_str, &uri, &iuid, state, 0, &rctx)
 						   != 0) {
 			LM_ERR("Setting the probing state failed (%.*s, group %.*s)\n",
-					uri.len, uri.s, group_str->len, group_str->s);
+					uri.len, uri.s, group_str.len, group_str.s);
 		}
 	}
 
 	/* Free the allocated setid copy */
-	if(group_str) {
-		LM_INFO("DEBUG: Freeing setid copy at %p\n", group_str);
-		shm_free(group_str);
+	if(setid_str) {
+		LM_INFO("DEBUG: Freeing setid copy at %p\n", setid_str);
+		shm_free(setid_str);
 	}
 
 	return;
@@ -4388,19 +4388,17 @@ void ds_ping_set(ds_set_t *node)
 			 * int request(str* m, str* ruri, str* to, str* from, str* h,
 			 *		str* b, str *oburi,
 			 *		transaction_cb cb, void* cbp); */
-			/* Allocate persistent copy of setid for callback - single block allocation */
-			str *setid_copy = (str*)shm_malloc(sizeof(str) + node->id.len + 1);
+			/* Allocate persistent copy of setid for callback - plain string */
+			char *setid_copy = (char*)shm_malloc(node->id.len + 1);
 			if(setid_copy == NULL) {
 				LM_ERR("failed to allocate memory for setid copy\n");
 				continue;
 			}
-			setid_copy->len = node->id.len;
-			setid_copy->s = (char*)setid_copy + sizeof(str);
-			memcpy(setid_copy->s, node->id.s, node->id.len);
-			setid_copy->s[node->id.len] = '\0';
+			memcpy(setid_copy, node->id.s, node->id.len);
+			setid_copy[node->id.len] = '\0';
 
-			LM_INFO("DEBUG PING: Sending OPTIONS with setid - len=%d, s=%p, content='%.*s'\n",
-					setid_copy->len, setid_copy->s, setid_copy->len, setid_copy->s ? setid_copy->s : "NULL");
+			LM_INFO("DEBUG PING: Sending OPTIONS with setid - s=%p, content='%s'\n",
+					setid_copy, setid_copy);
 			set_uac_req(&uac_r, &ds_ping_method, 0, 0, 0, TMCB_LOCAL_COMPLETED,
 					ds_options_callback, (void *)setid_copy);
 			if(node->dlist[j].attrs.ping_socket.s != NULL
