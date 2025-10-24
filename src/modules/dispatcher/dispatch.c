@@ -4224,8 +4224,6 @@ static void ds_options_callback(
 	str *setid_copy = (str *)(*ps->param);
 	group_str = *setid_copy;
 
-	LM_INFO("DEBUG OPTIONS: setid_copy=%p, s=%p, content='%.*s', len=%d\n",
-			setid_copy, setid_copy->s, setid_copy->len, setid_copy->s, setid_copy->len);
 
 	/* The SIP-URI is taken from the Transaction.
 	 * Remove the "To: <" (s+5) and the trailing >+new-line (s - 5 (To: <)
@@ -4250,7 +4248,6 @@ static void ds_options_callback(
 	ds_rctx_set_uri(&rctx, &uri);
 
 	ds_extract_fromhdr_iuid(&t->from_hdr, &iuid);
-	LM_INFO("=== iuid: %.*s\n", iuid.len, iuid.s);
 
 	/* Check if in the meantime someone disabled probing of the target
 	 * through RPC or reload */
@@ -4258,7 +4255,6 @@ static void ds_options_callback(
 			&& !(ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)) {
 		/* Free the allocated setid copy before early return */
 		if(setid_copy) {
-			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", setid_copy);
 			if(setid_copy->s) {
 				shm_free(setid_copy->s);
 			}
@@ -4300,7 +4296,6 @@ static void ds_options_callback(
 
 	/* Free the allocated setid copy */
 	if(setid_copy) {
-		LM_INFO("DEBUG: Freeing setid copy at %p\n", setid_copy);
 		if(setid_copy->s) {
 			shm_free(setid_copy->s);
 		}
@@ -4408,8 +4403,6 @@ void ds_ping_set(ds_set_t *node)
 			memcpy(setid_copy->s, node->id.s, node->id.len);
 			setid_copy->s[node->id.len] = '\0';
 
-			LM_INFO("DEBUG PING: Sending OPTIONS with setid - str=%p, s=%p, content='%.*s'\n",
-					setid_copy, setid_copy->s, setid_copy->len, setid_copy->s);
 			set_uac_req(&uac_r, &ds_ping_method, 0, 0, 0, TMCB_LOCAL_COMPLETED,
 					ds_options_callback, (void *)setid_copy);
 			if(node->dlist[j].attrs.ping_socket.s != NULL
