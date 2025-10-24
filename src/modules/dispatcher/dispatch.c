@@ -4261,6 +4261,10 @@ static void ds_options_callback(
 		/* Free the allocated setid copy before early return */
 		if(group_str) {
 			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", group_str);
+			if(group_str->s) {
+				LM_INFO("DEBUG: Freeing setid string data at %p\n", group_str->s);
+				shm_free(group_str->s);
+			}
 			shm_free(group_str);
 		}
 		return;
@@ -4300,6 +4304,10 @@ static void ds_options_callback(
 	/* Free the allocated setid copy */
 	if(group_str) {
 		LM_INFO("DEBUG: Freeing setid copy at %p\n", group_str);
+		if(group_str->s) {
+			LM_INFO("DEBUG: Freeing setid string data at %p\n", group_str->s);
+			shm_free(group_str->s);
+		}
 		shm_free(group_str);
 	}
 
@@ -4389,13 +4397,16 @@ void ds_ping_set(ds_set_t *node)
 			 *		str* b, str *oburi,
 			 *		transaction_cb cb, void* cbp); */
 			/* Allocate persistent copy of setid for callback */
-			str *setid_copy = (str*)shm_malloc(sizeof(str) + node->id.len + 1);
-			if(setid_copy == NULL) {
+			str *setid_copy = (str*)shm_malloc(sizeof(str));
+			char *str_data = (char*)shm_malloc(node->id.len + 1);
+			if(setid_copy == NULL || str_data == NULL) {
 				LM_ERR("failed to allocate memory for setid copy\n");
+				if(setid_copy) shm_free(setid_copy);
+				if(str_data) shm_free(str_data);
 				continue;
 			}
 			setid_copy->len = node->id.len;
-			setid_copy->s = (char*)setid_copy + sizeof(str);
+			setid_copy->s = str_data;
 			memcpy(setid_copy->s, node->id.s, node->id.len);
 			setid_copy->s[node->id.len] = '\0';
 
