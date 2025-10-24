@@ -2013,6 +2013,8 @@ int ds_rpc_print_set(
 		rpc->fault(ctx, 500, "Internal error set structure");
 		return -1;
 	}
+	LM_INFO("DEBUG: RPC printing setid - len=%d, s=%p, content='%.*s'\n",
+			node->id.len, node->id.s, node->id.len, node->id.s ? node->id.s : "NULL");
 	if(rpc->struct_add(sh, "s[", "ID", node->id.s, "TARGETS", &rh) < 0) {
 		rpc->fault(ctx, 500, "Internal error creating set id");
 		return -1;
