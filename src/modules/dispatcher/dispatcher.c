@@ -764,10 +764,14 @@ static int ki_ds_select_routes_limit(
 	gret = -1;
 	i = 0;
 	while(i < srules->len) {
-		vstate.setid = 0;
+		int setid_start = i;
+		int setid_len = 0;
+
+		/* Find the setid string (digits before '=') */
 		for(; i < srules->len; i++) {
 			if(srules->s[i] < '0' || srules->s[i] > '9') {
 				if(srules->s[i] == '=') {
+					setid_len = i - setid_start;
 					i++;
 					break;
 				} else {
@@ -776,8 +780,10 @@ static int ki_ds_select_routes_limit(
 					return -1;
 				}
 			}
-			vstate.setid = (vstate.setid * 10) + (srules->s[i] - '0');
 		}
+		/* Set the setid string */
+		vstate.setid.s = srules->s + setid_start;
+		vstate.setid.len = setid_len;
 		vstate.alg = 0;
 		for(; i < srules->len; i++) {
 			if(srules->s[i] < '0' || srules->s[i] > '9') {
@@ -1397,7 +1403,7 @@ static int pv_get_dsv(sip_msg_t *msg, pv_param_t *param, pv_value_t *res)
 			}
 			return pv_get_null(msg, param, res);
 		case 4:
-			return pv_get_sintval(msg, param, res, rctx->setid);
+			return pv_get_strval(msg, param, res, &rctx->setid);
 		default:
 			return pv_get_null(msg, param, res);
 	}
@@ -2446,6 +2452,7 @@ static void dispatcher_rpc_oclist(rpc_t *rpc, void *ctx)
 {
 	int group = 0;
 	int i = 0;
+	str group_str;
 	ds_set_t *node = NULL;
 	void *th = NULL;
 
@@ -2454,8 +2461,9 @@ static void dispatcher_rpc_oclist(rpc_t *rpc, void *ctx)
 		return;
 	}
 
-	/* get the index of the set */
-	node = ds_list_lookup(group);
+	/* convert group to string and get the index of the set */
+	group_str.s = int2str(group, &group_str.len);
+	node = ds_list_lookup(&group_str);
 	if(node == NULL) {
 		LM_ERR("destination set [%d] not found\n", group);
 		rpc->fault(ctx, 404, "Destination Group Not Found");

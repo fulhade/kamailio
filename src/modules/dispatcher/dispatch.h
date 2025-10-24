@@ -95,7 +95,7 @@ typedef struct ds_rctx
 	int code;
 	str reason;
 	str uri;
-	int setid;
+	str setid;
 } ds_rctx_t;
 
 extern str ds_db_url;
@@ -155,23 +155,23 @@ int ds_load_db(void);
 int ds_reload_db(void);
 int ds_destroy_list(void);
 int ds_select_dst_limit(
-		sip_msg_t *msg, int set, int alg, uint32_t limit, int mode);
-int ds_select_dst(struct sip_msg *msg, int set, int alg, int mode);
+		sip_msg_t *msg, str *set, int alg, uint32_t limit, int mode);
+int ds_select_dst(struct sip_msg *msg, str *set, int alg, int mode);
 int ds_update_dst(struct sip_msg *msg, int upos, int mode);
-int ds_add_dst(int group, str *address, int flags, int priority, str *attrs);
-int ds_remove_dst(int group, str *address);
-int ds_update_state(sip_msg_t *msg, int group, str *address, str *iuid,
+int ds_add_dst(str *group, str *address, int flags, int priority, str *attrs);
+int ds_remove_dst(str *group, str *address);
+int ds_update_state(sip_msg_t *msg, str *group, str *address, str *iuid,
 		int state, int mode, ds_rctx_t *rctx);
-int ds_reinit_state(int group, str *address, str *iuid, int state);
-int ds_reinit_state_all(int group, int state);
-int ds_reinit_duid_state(int group, str *vduid, int state);
+int ds_reinit_state(str *group, str *address, str *iuid, int state);
+int ds_reinit_state_all(str *group, int state);
+int ds_reinit_duid_state(str *group, str *vduid, int state);
 int ds_mark_dst(struct sip_msg *msg, int state);
 int ds_mark_dst_mode(struct sip_msg *msg, int state, int mode);
-int ds_mark_addr(sip_msg_t *msg, int state, int group, str *uri, int mode);
+int ds_mark_addr(sip_msg_t *msg, int state, str *group, str *uri, int mode);
 int ds_print_list(FILE *fout);
 int ds_log_sets(void);
-int ds_list_exist(int set);
-int ds_is_active_uri(sip_msg_t *msg, int group, str *uri);
+int ds_list_exist(str *set);
+int ds_is_active_uri(sip_msg_t *msg, str *group, str *uri);
 
 int ds_load_unset(struct sip_msg *msg);
 int ds_load_update(struct sip_msg *msg);
@@ -179,8 +179,8 @@ int ds_load_update(struct sip_msg *msg);
 int ds_hash_load_init(unsigned int htsize, int expire, int initexpire);
 int ds_hash_load_destroy(void);
 
-int ds_is_from_list(struct sip_msg *_m, int group);
-int ds_is_addr_from_list(sip_msg_t *_m, int group, str *uri, int mode);
+int ds_is_from_list(struct sip_msg *_m, str *group);
+int ds_is_addr_from_list(sip_msg_t *_m, str *group, str *uri, int mode);
 
 /*! \brief
  * Timer for checking inactive destinations
@@ -266,7 +266,7 @@ typedef struct _ds_dest {
 } ds_dest_t;
 
 typedef struct _ds_set {
-	int id;				/*!< id of dst set */
+	str id;				/*!< id of dst set */
 	int nr;				/*!< number of items in dst set */
 	int last;			/*!< last used item in dst set (round robin) */
 	int wlast;			/*!< last used item in dst set (by weight) */
@@ -281,7 +281,7 @@ typedef struct _ds_set {
 } ds_set_t;
 
 typedef struct _ds_select_state {
-	int setid;  /* dispatcher set id (group id) */
+	str setid;  /* dispatcher set id (group id) */
 	int alg;    /* algorithm to select destinations */
 	int umode;  /* update mode - push to: r-uri, d-uri, xavp */
 	uint32_t limit; /* limit of destination addresses to be selected */
@@ -291,7 +291,7 @@ typedef struct _ds_select_state {
 } ds_select_state_t;
 
 struct ds_filter_dest_cb_arg {
-	int setid;
+	str setid;
 	ds_dest_t *dest;
 	int *setn;
 };
@@ -306,7 +306,7 @@ struct ds_filter_dest_cb_arg {
 ds_set_t *ds_get_list(void);
 int ds_get_list_nr(void);
 
-ds_set_t *ds_list_lookup(int set);
+ds_set_t *ds_list_lookup(str *set);
 
 int ds_ping_active_init(void);
 int ds_ping_active_get(void);
@@ -315,8 +315,8 @@ int ds_ping_active_set(int v);
 int ds_sruid_init(void);
 
 /* Create if not exist and return ds_set_t by id */
-ds_set_t *ds_avl_insert(ds_set_t **root, int id, int *setn);
-ds_set_t *ds_avl_find(ds_set_t *node, int id);
+ds_set_t *ds_avl_insert(ds_set_t **root, str *id, int *setn);
+ds_set_t *ds_avl_find(ds_set_t *node, str *id);
 void ds_avl_destroy(ds_set_t **node);
 
 int ds_manage_routes(sip_msg_t *msg, ds_select_state_t *rstate);
@@ -325,5 +325,5 @@ ds_rctx_t *ds_get_rctx(void);
 unsigned int ds_get_hash(str *x, str *y);
 
 int ds_oc_set_attrs(
-		sip_msg_t *msg, int setid, str *uri, int irval, int itval, int isval);
+		sip_msg_t *msg, str *setid, str *uri, int irval, int itval, int isval);
 #endif
