@@ -4202,7 +4202,6 @@ int ds_extract_fromhdr_iuid(str *from, str *iuid)
 static void ds_options_callback(
 		struct cell *t, int type, struct tmcb_params *ps)
 {
-	char *setid_str = NULL;
 	str group_str = {0, 0};
 	str uri = {0, 0};
 	sip_msg_t *fmsg;
@@ -4221,13 +4220,12 @@ static void ds_options_callback(
 
 	fmsg = NULL;
 
-	/* The param is a (void*) Pointer to string, so we need to cast it back */
-	setid_str = (char *)ps->param;
-	group_str.s = setid_str;
-	group_str.len = strlen(setid_str);
+	/* The param is a (void*) Pointer to str, following keepalive pattern */
+	str *setid_copy = (str *)(*ps->param);
+	group_str = *setid_copy;
 
-	LM_INFO("DEBUG OPTIONS: setid_str=%p, content='%s', group_str len=%d\n",
-			setid_str, setid_str ? setid_str : "NULL", group_str.len);
+	LM_INFO("DEBUG OPTIONS: setid_copy=%p, s=%p, content='%.*s', len=%d\n",
+			setid_copy, setid_copy->s, setid_copy->len, setid_copy->s, setid_copy->len);
 
 	/* The SIP-URI is taken from the Transaction.
 	 * Remove the "To: <" (s+5) and the trailing >+new-line (s - 5 (To: <)
@@ -4259,9 +4257,12 @@ static void ds_options_callback(
 	if(ds_probing_mode == DS_PROBE_ONLYFLAGGED
 			&& !(ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)) {
 		/* Free the allocated setid copy before early return */
-		if(setid_str) {
-			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", setid_str);
-			shm_free(setid_str);
+		if(setid_copy) {
+			LM_INFO("DEBUG: Freeing setid copy at %p (early return)\n", setid_copy);
+			if(setid_copy->s) {
+				shm_free(setid_copy->s);
+			}
+			shm_free(setid_copy);
 		}
 		return;
 	}
@@ -4298,9 +4299,12 @@ static void ds_options_callback(
 	}
 
 	/* Free the allocated setid copy */
-	if(setid_str) {
-		LM_INFO("DEBUG: Freeing setid copy at %p\n", setid_str);
-		shm_free(setid_str);
+	if(setid_copy) {
+		LM_INFO("DEBUG: Freeing setid copy at %p\n", setid_copy);
+		if(setid_copy->s) {
+			shm_free(setid_copy->s);
+		}
+		shm_free(setid_copy);
 	}
 
 	return;
@@ -4388,17 +4392,24 @@ void ds_ping_set(ds_set_t *node)
 			 * int request(str* m, str* ruri, str* to, str* from, str* h,
 			 *		str* b, str *oburi,
 			 *		transaction_cb cb, void* cbp); */
-			/* Allocate persistent copy of setid for callback - plain string */
-			char *setid_copy = (char*)shm_malloc(node->id.len + 1);
+			/* Allocate persistent copy of setid for callback - following keepalive pattern */
+			str *setid_copy = (str*)shm_malloc(sizeof(str));
 			if(setid_copy == NULL) {
 				LM_ERR("failed to allocate memory for setid copy\n");
 				continue;
 			}
-			memcpy(setid_copy, node->id.s, node->id.len);
-			setid_copy[node->id.len] = '\0';
+			setid_copy->s = (char*)shm_malloc(node->id.len + 1);
+			if(setid_copy->s == NULL) {
+				LM_ERR("failed to allocate memory for setid string\n");
+				shm_free(setid_copy);
+				continue;
+			}
+			setid_copy->len = node->id.len;
+			memcpy(setid_copy->s, node->id.s, node->id.len);
+			setid_copy->s[node->id.len] = '\0';
 
-			LM_INFO("DEBUG PING: Sending OPTIONS with setid - s=%p, content='%s'\n",
-					setid_copy, setid_copy);
+			LM_INFO("DEBUG PING: Sending OPTIONS with setid - str=%p, s=%p, content='%.*s'\n",
+					setid_copy, setid_copy->s, setid_copy->len, setid_copy->s);
 			set_uac_req(&uac_r, &ds_ping_method, 0, 0, 0, TMCB_LOCAL_COMPLETED,
 					ds_options_callback, (void *)setid_copy);
 			if(node->dlist[j].attrs.ping_socket.s != NULL
