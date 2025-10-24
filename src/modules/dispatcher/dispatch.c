@@ -4196,7 +4196,7 @@ int ds_extract_fromhdr_iuid(str *from, str *iuid)
 static void ds_options_callback(
 		struct cell *t, int type, struct tmcb_params *ps)
 {
-	int group = 0;
+	str *group_str = NULL;
 	str uri = {0, 0};
 	sip_msg_t *fmsg;
 	int state;
@@ -4214,23 +4214,18 @@ static void ds_options_callback(
 
 	fmsg = NULL;
 
-	/* The param is a (void*) Pointer, so we need to dereference it and
-	 *  cast it to an int. */
-	group = (int)(long)(*ps->param);
-
-	/* Convert integer group to string for function calls */
-	str group_str;
-	group_str.s = int2str(group, &group_str.len);
+	/* The param is a (void*) Pointer to str, so we need to cast it back */
+	group_str = (str *)ps->param;
 
 	/* The SIP-URI is taken from the Transaction.
 	 * Remove the "To: <" (s+5) and the trailing >+new-line (s - 5 (To: <)
 	 * - 3 (>\r\n)). */
 	uri.s = t->to_hdr.s + 5;
 	uri.len = t->to_hdr.len - 8;
-	LM_DBG("OPTIONS-Request was finished with code %d (to %.*s, group %d)\n",
-			ps->code, uri.len, uri.s, group);
+	LM_DBG("OPTIONS-Request was finished with code %d (to %.*s, group %.*s)\n",
+			ps->code, uri.len, uri.s, group_str->len, group_str->s);
 	if(ds_ping_latency_stats) {
-		ds_update_latency(&group_str, &uri, ps->code);
+		ds_update_latency(group_str, &uri, ps->code);
 	}
 
 	memset(&rctx, 0, sizeof(ds_rctx_t));
@@ -4241,7 +4236,7 @@ static void ds_options_callback(
 			rctx.reason = ps->rpl->first_line.u.reply.reason;
 		}
 	}
-	rctx.setid.s = int2str(group, &rctx.setid.len);
+	rctx.setid = *group_str;
 	ds_rctx_set_uri(&rctx, &uri);
 
 	ds_extract_fromhdr_iuid(&t->from_hdr, &iuid);
@@ -4250,7 +4245,7 @@ static void ds_options_callback(
 	/* Check if in the meantime someone disabled probing of the target
 	 * through RPC or reload */
 	if(ds_probing_mode == DS_PROBE_ONLYFLAGGED
-			&& !(ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)) {
+			&& !(ds_get_state(group_str, &uri, &iuid) & DS_PROBING_DST)) {
 		return;
 	}
 
@@ -4262,26 +4257,26 @@ static void ds_options_callback(
 		state = 0;
 		if(ds_probing_mode == DS_PROBE_ALL
 				|| ((ds_probing_mode == DS_PROBE_ONLYFLAGGED)
-						&& (ds_get_state(&group_str, &uri, &iuid) & DS_PROBING_DST)))
+						&& (ds_get_state(group_str, &uri, &iuid) & DS_PROBING_DST)))
 			state |= DS_PROBING_DST;
 
 		/* Check if in the meantime someone disabled the target through RPC */
-		if(!(ds_get_state(&group_str, &uri, &iuid) & DS_DISABLED_DST)
-				&& ds_update_state(fmsg, &group_str, &uri, &iuid, state, 0, &rctx)
+		if(!(ds_get_state(group_str, &uri, &iuid) & DS_DISABLED_DST)
+				&& ds_update_state(fmsg, group_str, &uri, &iuid, state, 0, &rctx)
 						   != 0) {
-			LM_ERR("Setting the state failed (%.*s, group %d)\n", uri.len,
-					uri.s, group);
+			LM_ERR("Setting the state failed (%.*s, group %.*s)\n", uri.len,
+					uri.s, group_str->len, group_str->s);
 		}
 	} else {
 		state = DS_TRYING_DST;
 		if(ds_probing_mode != DS_PROBE_NONE)
 			state |= DS_PROBING_DST;
 		/* Check if in the meantime someone disabled the target through RPC */
-		if(!(ds_get_state(&group_str, &uri, &iuid) & DS_DISABLED_DST)
-				&& ds_update_state(fmsg, &group_str, &uri, &iuid, state, 0, &rctx)
+		if(!(ds_get_state(group_str, &uri, &iuid) & DS_DISABLED_DST)
+				&& ds_update_state(fmsg, group_str, &uri, &iuid, state, 0, &rctx)
 						   != 0) {
-			LM_ERR("Setting the probing state failed (%.*s, group %d)\n",
-					uri.len, uri.s, group);
+			LM_ERR("Setting the probing state failed (%.*s, group %.*s)\n",
+					uri.len, uri.s, group_str->len, group_str->s);
 		}
 	}
 
@@ -4371,7 +4366,7 @@ void ds_ping_set(ds_set_t *node)
 			 *		str* b, str *oburi,
 			 *		transaction_cb cb, void* cbp); */
 			set_uac_req(&uac_r, &ds_ping_method, 0, 0, 0, TMCB_LOCAL_COMPLETED,
-					ds_options_callback, (void *)(long)str2s(node->id.s, node->id.len, NULL));
+					ds_options_callback, (void *)&node->id);
 			if(node->dlist[j].attrs.ping_socket.s != NULL
 					&& node->dlist[j].attrs.ping_socket.len > 0) {
 				uac_r.ssock = &node->dlist[j].attrs.ping_socket;
