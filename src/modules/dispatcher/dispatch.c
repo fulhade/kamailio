@@ -1193,8 +1193,8 @@ int ds_load_list(char *lfile)
 		if(add_dest2list(&id_str, uri, flags, priority, &attrs, *ds_next_idx, &setn,
 				   0, latency_stats)
 				== NULL) {
-			LM_WARN("unable to add destination %.*s to set %d -- skipping\n",
-					uri.len, uri.s, id);
+			LM_WARN("unable to add destination %.*s to set %.*s -- skipping\n",
+					uri.len, uri.s, id_str.len, id_str.s);
 			if(ds_load_mode == 1) {
 				goto error;
 			}
@@ -1321,7 +1321,8 @@ int ds_reload_db(void)
 /*! \brief load groups of destinations from DB*/
 int ds_load_db(void)
 {
-	int i, id, nr_rows, setn;
+	int i, nr_rows, setn;
+	str id_str;
 	int flags;
 	int priority;
 	int nrcols;
@@ -1399,7 +1400,15 @@ int ds_load_db(void)
 	for(i = 0; i < nr_rows; i++) {
 		values = ROW_VALUES(rows + i);
 
-		id = VAL_INT(values);
+		/* Read setid as string to support string setids */
+		if(VAL_TYPE(values) == DB1_STR || VAL_TYPE(values) == DB1_STRING) {
+			id_str.s = VAL_STR(values).s;
+			id_str.len = strlen(id_str.s);
+		} else {
+			/* Fallback for integer setids - convert to string */
+			int id = VAL_INT(values);
+			id_str.s = int2str(id, &id_str.len);
+		}
 		uri.s = VAL_STR(values + 1).s;
 		uri.len = strlen(uri.s);
 		flags = 0;
@@ -1447,9 +1456,6 @@ int ds_load_db(void)
 		LM_DBG("attributes string: [%.*s]\n", attrs.len,
 				(attrs.s) ? attrs.s : "");
 		latency_stats = NULL;
-		/* Convert integer ID from database to string */
-		str id_str;
-		id_str.s = int2str(id, &id_str.len);
 		if(ds_ping_latency_stats && ds_retain_latency_stats) {
 			latency_stats = latency_stats_find(&id_str, &uri);
 		}
@@ -1457,8 +1463,8 @@ int ds_load_db(void)
 				   0, latency_stats)
 				== NULL) {
 			dest_errs++;
-			LM_WARN("unable to add destination %.*s to set %d -- skipping\n",
-					uri.len, uri.s, id);
+			LM_WARN("unable to add destination %.*s to set %.*s -- skipping\n",
+					uri.len, uri.s, id_str.len, id_str.s);
 			if(ds_load_mode == 1) {
 				goto err2;
 			}
