@@ -4377,6 +4377,8 @@ void ds_ping_set(ds_set_t *node)
 			 * int request(str* m, str* ruri, str* to, str* from, str* h,
 			 *		str* b, str *oburi,
 			 *		transaction_cb cb, void* cbp); */
+			LM_INFO("DEBUG PING: Sending OPTIONS with setid - len=%d, s=%p, content='%.*s'\n",
+					node->id.len, node->id.s, node->id.len, node->id.s ? node->id.s : "NULL");
 			set_uac_req(&uac_r, &ds_ping_method, 0, 0, 0, TMCB_LOCAL_COMPLETED,
 					ds_options_callback, (void *)&node->id);
 			if(node->dlist[j].attrs.ping_socket.s != NULL
