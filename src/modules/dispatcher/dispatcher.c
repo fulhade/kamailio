@@ -2251,13 +2251,20 @@ static void dispatcher_rpc_set_state_helper(rpc_t *rpc, void *ctx, int mattr)
 	str state;
 	int stval;
 
-	if(rpc->scan(ctx, ".SdS", &state, &group, &dest) < 3) {
-		rpc->fault(ctx, 500, "Invalid Parameters");
-		return;
+	/* Try to parse with string setid first, then fallback to integer */
+	str setid_str;
+	if(rpc->scan(ctx, ".SSS", &state, &setid_str, &dest) < 3) {
+		/* Fallback to integer setid for backward compatibility */
+		if(rpc->scan(ctx, ".SdS", &state, &group, &dest) < 3) {
+			rpc->fault(ctx, 500, "Invalid Parameters");
+			return;
+		}
+		/* Convert integer to string */
+		s_group.s = int2str(group, &s_group.len);
+	} else {
+		/* Use string setid directly */
+		s_group = setid_str;
 	}
-
-	/* Convert group integer to string */
-	s_group.s = int2str(group, &s_group.len);
 	if(state.len <= 0 || state.s == NULL) {
 		LM_ERR("bad state value\n");
 		rpc->fault(ctx, 500, "Invalid State Parameter");
@@ -2402,18 +2409,28 @@ static void dispatcher_rpc_add(rpc_t *rpc, void *ctx)
 	flags = 0;
 	priority = 0;
 
-	nparams =
-			rpc->scan(ctx, "dS*ddS", &group, &dest, &flags, &priority, &attrs);
+	/* Try to parse with string setid first, then fallback to integer */
+	str setid_str;
+	nparams = rpc->scan(ctx, "SS*ddS", &setid_str, &dest, &flags, &priority, &attrs);
+
 	if(nparams < 2) {
-		rpc->fault(ctx, 500, "Invalid Parameters");
-		return;
-	} else if(nparams <= 4) {
+		/* Fallback to integer setid for backward compatibility */
+		nparams = rpc->scan(ctx, "dS*ddS", &group, &dest, &flags, &priority, &attrs);
+		if(nparams < 2) {
+			rpc->fault(ctx, 500, "Invalid Parameters");
+			return;
+		}
+		/* Convert integer to string */
+		s_group.s = int2str(group, &s_group.len);
+	} else {
+		/* Use string setid directly */
+		s_group = setid_str;
+	}
+
+	if(nparams <= 4) {
 		attrs.s = 0;
 		attrs.len = 0;
 	}
-
-	/* Convert group integer to string */
-	s_group.s = int2str(group, &s_group.len);
 
 	if(ds_add_dst(&s_group, &dest, flags, priority, &attrs) != 0) {
 		rpc->fault(ctx, 500, "Adding dispatcher dst failed");
@@ -2449,13 +2466,20 @@ static void dispatcher_rpc_remove(rpc_t *rpc, void *ctx)
 	}
 	*ds_rpc_reload_time = time(NULL);
 
-	if(rpc->scan(ctx, "dS", &group, &dest) < 2) {
-		rpc->fault(ctx, 500, "Invalid Parameters");
-		return;
+	/* Try to parse with string setid first, then fallback to integer */
+	str setid_str;
+	if(rpc->scan(ctx, "SS", &setid_str, &dest) < 2) {
+		/* Fallback to integer setid for backward compatibility */
+		if(rpc->scan(ctx, "dS", &group, &dest) < 2) {
+			rpc->fault(ctx, 500, "Invalid Parameters");
+			return;
+		}
+		/* Convert integer to string */
+		s_group.s = int2str(group, &s_group.len);
+	} else {
+		/* Use string setid directly */
+		s_group = setid_str;
 	}
-
-	/* Convert group integer to string */
-	s_group.s = int2str(group, &s_group.len);
 
 	if(ds_remove_dst(&s_group, &dest) != 0) {
 		rpc->fault(ctx, 500, "Removing dispatcher dst failed");
