@@ -2546,16 +2546,23 @@ static void dispatcher_rpc_oclist(rpc_t *rpc, void *ctx)
 	ds_set_t *node = NULL;
 	void *th = NULL;
 
-	if(rpc->scan(ctx, "d", &group) != 1) {
-		rpc->fault(ctx, 500, "Invalid Parameters");
-		return;
+	/* Try to parse with string setid first, then fallback to integer */
+	str setid_str;
+	if(rpc->scan(ctx, "S", &setid_str) != 1) {
+		/* Fallback to integer setid for backward compatibility */
+		if(rpc->scan(ctx, "d", &group) != 1) {
+			rpc->fault(ctx, 500, "Invalid Parameters");
+			return;
+		}
+		/* Convert integer to string */
+		group_str.s = int2str(group, &group_str.len);
+	} else {
+		/* Use string setid directly */
+		group_str = setid_str;
 	}
-
-	/* convert group to string and get the index of the set */
-	group_str.s = int2str(group, &group_str.len);
 	node = ds_list_lookup(&group_str);
 	if(node == NULL) {
-		LM_ERR("destination set [%d] not found\n", group);
+		LM_ERR("destination set [%.*s] not found\n", group_str.len, group_str.s);
 		rpc->fault(ctx, 404, "Destination Group Not Found");
 		return;
 	}
