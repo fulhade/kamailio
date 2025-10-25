@@ -220,17 +220,17 @@ static pv_export_t mod_pvs[] = {
 
 static cmd_export_t cmds[]={
 	{"ds_select",    (cmd_function)w_ds_select,            2,
-		fixup_igp_igp, fixup_free_igp_igp, ANY_ROUTE},
+		fixup_spve_spve, fixup_free_spve_spve, ANY_ROUTE},
 	{"ds_select",    (cmd_function)w_ds_select_limit,      3,
-		fixup_igp_all, fixup_free_igp_all, REQUEST_ROUTE|FAILURE_ROUTE},
+		fixup_spve_all, fixup_free_spve_all, REQUEST_ROUTE|FAILURE_ROUTE},
 	{"ds_select_dst",    (cmd_function)w_ds_select_dst,    2,
 		fixup_spve_spve, fixup_free_spve_spve, REQUEST_ROUTE|FAILURE_ROUTE},
 	{"ds_select_dst",    (cmd_function)w_ds_select_dst_limit,    3,
 		fixup_spve_all, fixup_free_spve_all, REQUEST_ROUTE|FAILURE_ROUTE},
 	{"ds_select_domain", (cmd_function)w_ds_select_domain, 2,
-		fixup_igp_igp, fixup_free_igp_igp, REQUEST_ROUTE|FAILURE_ROUTE},
+		fixup_spve_spve, fixup_free_spve_spve, REQUEST_ROUTE|FAILURE_ROUTE},
 	{"ds_select_domain", (cmd_function)w_ds_select_domain_limit, 3,
-		fixup_igp_all, fixup_free_igp_all, REQUEST_ROUTE|FAILURE_ROUTE},
+		fixup_spve_all, fixup_free_spve_all, REQUEST_ROUTE|FAILURE_ROUTE},
 	{"ds_select_routes", (cmd_function)w_ds_select_routes, 2,
 		fixup_spve_spve, fixup_free_spve_spve, REQUEST_ROUTE|FAILURE_ROUTE},
 	{"ds_select_routes", (cmd_function)w_ds_select_routes_limit, 3,
@@ -252,33 +252,33 @@ static cmd_export_t cmds[]={
 	{"ds_is_from_list",  (cmd_function)w_ds_is_from_list0, 0,
 		0, 0, REQUEST_ROUTE|FAILURE_ROUTE|ONREPLY_ROUTE|BRANCH_ROUTE},
 	{"ds_is_from_list",  (cmd_function)w_ds_is_from_list1, 1,
-		fixup_igp_null, fixup_free_igp_null, ANY_ROUTE},
+		fixup_spve_null, fixup_free_spve_null, ANY_ROUTE},
 	{"ds_is_from_list",  (cmd_function)w_ds_is_from_list2, 2,
 		fixup_ds_is_from_list, fixup_free_ds_is_from_list, ANY_ROUTE},
 	{"ds_is_from_list",  (cmd_function)w_ds_is_from_list3, 3,
 		fixup_ds_is_from_list, fixup_free_ds_is_from_list, ANY_ROUTE},
 	{"ds_list_exist",  (cmd_function)w_ds_list_exist, 1,
-		fixup_igp_null, fixup_free_igp_null, ANY_ROUTE},
+		fixup_spve_null, fixup_free_spve_null, ANY_ROUTE},
 	{"ds_list_exists",  (cmd_function)w_ds_list_exist, 1,
-		fixup_igp_null, fixup_free_igp_null, ANY_ROUTE},
+		fixup_spve_null, fixup_free_spve_null, ANY_ROUTE},
 	{"ds_load_unset",    (cmd_function)w_ds_load_unset,   0,
 		0, 0, ANY_ROUTE},
 	{"ds_load_update",   (cmd_function)w_ds_load_update,  0,
 		0, 0, ANY_ROUTE},
 	{"ds_is_active",  (cmd_function)w_ds_is_active, 1,
-		fixup_igp_null, fixup_free_igp_null, ANY_ROUTE},
+		fixup_spve_null, fixup_free_spve_null, ANY_ROUTE},
 	{"ds_is_active",  (cmd_function)w_ds_is_active_uri, 2,
-		fixup_igp_spve, fixup_free_igp_spve, ANY_ROUTE},
+		fixup_spve_spve, fixup_free_spve_spve, ANY_ROUTE},
 	{"bind_dispatcher",   (cmd_function)bind_dispatcher,  0,
 		0, 0, 0},
 	{"ds_reload", (cmd_function)w_ds_reload, 0,
 		0, 0, ANY_ROUTE},
 	{"ds_oc_set_attrs",  (cmd_function)w_ds_oc_set_attrs, 5,
-		fixup_isiii, fixup_free_isiii, ANY_ROUTE},
+		fixup_spve_all, fixup_free_spve_all, ANY_ROUTE},
 	{"ds_dsg_fetch",  (cmd_function)w_ds_dsg_fetch, 1,
-		fixup_igp_null, fixup_free_igp_null, ANY_ROUTE},
+		fixup_spve_null, fixup_free_spve_null, ANY_ROUTE},
 	{"ds_dsg_fetch_uri",  (cmd_function)w_ds_dsg_fetch_uri, 2,
-		fixup_igp_spve, fixup_free_igp_spve, ANY_ROUTE},
+		fixup_spve_spve, fixup_free_spve_spve, ANY_ROUTE},
 	{0,0,0,0,0,0}
 };
 
@@ -830,8 +830,8 @@ static int ki_ds_select_routes_limit(
 		}
 		vret = ds_manage_routes(msg, &vstate);
 		if(vret < 0) {
-			LM_DBG("failed to select target destinations from %d=%d [%.*s]\n",
-					vstate.setid, vstate.alg, srules->len, srules->s);
+			LM_DBG("failed to select target destinations from %.*s=%d [%.*s]\n",
+					vstate.setid.len, vstate.setid.s, vstate.alg, srules->len, srules->s);
 			/* continue to try other target groups */
 		} else {
 			if(vret > 0) {
@@ -1001,7 +1001,7 @@ static int w_ds_mark_dst1(struct sip_msg *msg, char *str1, char *str2)
 /**
  *
  */
-static int ki_ds_mark_addr(sip_msg_t *msg, str *vstate, int vgroup, str *vuri)
+static int ki_ds_mark_addr(sip_msg_t *msg, str *vstate, str *vgroup, str *vuri)
 {
 	int state;
 
@@ -1024,23 +1024,31 @@ static int w_ds_mark_addr(
 		struct sip_msg *msg, char *state, char *group, char *uri)
 {
 	str vstate;
-	int vgroup;
+	str vgroup;
 	str vuri;
+	int igroup;
 
 	if(fixup_get_svalue(msg, (gparam_t *)state, &vstate) < 0) {
 		LM_ERR("failed to get state parameter\n");
 		return -1;
 	}
-	if(fixup_get_ivalue(msg, (gparam_t *)group, &vgroup) < 0) {
-		LM_ERR("failed to get group id parameter\n");
-		return -1;
+
+	/* Try to get group as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_t *)group, &vgroup) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_t *)group, &igroup) < 0) {
+			LM_ERR("failed to get group id parameter\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		vgroup.s = int2str(igroup, &vgroup.len);
 	}
+
 	if(fixup_get_svalue(msg, (gparam_t *)uri, &vuri) < 0) {
 		LM_ERR("failed to get uri parameter\n");
 		return -1;
 	}
 
-	return ki_ds_mark_addr(msg, &vstate, vgroup, &vuri);
+	return ki_ds_mark_addr(msg, &vstate, &vgroup, &vuri);
 }
 
 /**
@@ -1111,42 +1119,55 @@ static int w_ds_reload(struct sip_msg *msg, char *str1, char *str2)
 
 static int w_ds_is_from_list0(struct sip_msg *msg, char *str1, char *str2)
 {
-	return ds_is_from_list(msg, -1);
+	return ds_is_from_list(msg, NULL);
 }
 
 static int ki_ds_is_from_lists(sip_msg_t *msg)
 {
-	return ds_is_from_list(msg, -1);
+	return ds_is_from_list(msg, NULL);
 }
 
 static int w_ds_is_from_list1(struct sip_msg *msg, char *set, char *str2)
 {
+	str s_set;
 	int s;
-	if(fixup_get_ivalue(msg, (gparam_p)set, &s) != 0) {
-		LM_ERR("cannot get set id value\n");
-		return -1;
+
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_p)set, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_p)set, &s) != 0) {
+			LM_ERR("cannot get set id value\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(s, &s_set.len);
 	}
-	return ds_is_from_list(msg, s);
+	return ds_is_from_list(msg, &s_set);
 }
 
 static int w_ds_is_from_list2(struct sip_msg *msg, char *set, char *mode)
 {
+	str s_set;
 	int vset;
 	int vmode;
 
-	if(fixup_get_ivalue(msg, (gparam_t *)set, &vset) != 0) {
-		LM_ERR("cannot get set id value\n");
-		return -1;
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_t *)set, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_t *)set, &vset) != 0) {
+			LM_ERR("cannot get set id value\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(vset, &s_set.len);
 	}
 	if(fixup_get_ivalue(msg, (gparam_t *)mode, &vmode) != 0) {
 		LM_ERR("cannot get mode value\n");
 		return -1;
 	}
 
-	return ds_is_addr_from_list(msg, vset, NULL, vmode);
+	return ds_is_addr_from_list(msg, &s_set, NULL, vmode);
 }
 
-static int ki_ds_is_from_list_mode(sip_msg_t *msg, int vset, int vmode)
+static int ki_ds_is_from_list_mode(sip_msg_t *msg, str *vset, int vmode)
 {
 	return ds_is_addr_from_list(msg, vset, NULL, vmode);
 }
@@ -1154,13 +1175,19 @@ static int ki_ds_is_from_list_mode(sip_msg_t *msg, int vset, int vmode)
 static int w_ds_is_from_list3(
 		struct sip_msg *msg, char *set, char *mode, char *uri)
 {
+	str s_set;
 	int vset;
 	int vmode;
 	str suri;
 
-	if(fixup_get_ivalue(msg, (gparam_t *)set, &vset) != 0) {
-		LM_ERR("cannot get set id value\n");
-		return -1;
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_t *)set, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_t *)set, &vset) != 0) {
+			LM_ERR("cannot get set id value\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(vset, &s_set.len);
 	}
 	if(fixup_get_ivalue(msg, (gparam_t *)mode, &vmode) != 0) {
 		LM_ERR("cannot get mode value\n");
@@ -1171,11 +1198,11 @@ static int w_ds_is_from_list3(
 		return -1;
 	}
 
-	return ds_is_addr_from_list(msg, vset, &suri, vmode);
+	return ds_is_addr_from_list(msg, &s_set, &suri, vmode);
 }
 
 static int ki_ds_is_from_list_uri(
-		sip_msg_t *msg, int vset, int vmode, str *vuri)
+		sip_msg_t *msg, str *vset, int vmode, str *vuri)
 {
 	return ds_is_addr_from_list(msg, vset, vuri, vmode);
 }
@@ -1201,57 +1228,75 @@ static int fixup_free_ds_is_from_list(void **param, int param_no)
 /* Check if a given set exist in memory */
 static int w_ds_list_exist(struct sip_msg *msg, char *param, char *p2)
 {
+	str s_set;
 	int set;
 
-	if(fixup_get_ivalue(msg, (gparam_p)param, &set) != 0) {
-		LM_ERR("cannot get set id param value\n");
-		return -2;
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_p)param, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_p)param, &set) != 0) {
+			LM_ERR("cannot get set id param value\n");
+			return -2;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(set, &s_set.len);
 	}
-	return ds_list_exist(set);
+	return ds_list_exist(&s_set);
 }
 
-static int ki_ds_list_exists(struct sip_msg *msg, int set)
+static int ki_ds_list_exists(struct sip_msg *msg, str *set)
 {
 	return ds_list_exist(set);
 }
 
-static int ki_ds_is_active(sip_msg_t *msg, int set)
+static int ki_ds_is_active(sip_msg_t *msg, str *set)
 {
 	return ds_is_active_uri(msg, set, NULL);
 }
 
 static int w_ds_is_active(sip_msg_t *msg, char *pset, char *p2)
 {
+	str s_set;
 	int vset;
 
-	if(fixup_get_ivalue(msg, (gparam_t *)pset, &vset) != 0) {
-		LM_ERR("cannot get set id value\n");
-		return -1;
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_t *)pset, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_t *)pset, &vset) != 0) {
+			LM_ERR("cannot get set id value\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(vset, &s_set.len);
 	}
 
-	return ds_is_active_uri(msg, vset, NULL);
+	return ds_is_active_uri(msg, &s_set, NULL);
 }
 
-static int ki_ds_is_active_uri(sip_msg_t *msg, int set, str *uri)
+static int ki_ds_is_active_uri(sip_msg_t *msg, str *set, str *uri)
 {
 	return ds_is_active_uri(msg, set, uri);
 }
 
 static int w_ds_is_active_uri(sip_msg_t *msg, char *pset, char *puri)
 {
+	str s_set;
 	int vset;
 	str suri;
 
-	if(fixup_get_ivalue(msg, (gparam_t *)pset, &vset) != 0) {
-		LM_ERR("cannot get set id value\n");
-		return -1;
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_t *)pset, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_t *)pset, &vset) != 0) {
+			LM_ERR("cannot get set id value\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(vset, &s_set.len);
 	}
 	if(fixup_get_svalue(msg, (gparam_t *)puri, &suri) != 0) {
 		LM_ERR("cannot get uri value\n");
 		return -1;
 	}
 
-	return ki_ds_is_active_uri(msg, vset, &suri);
+	return ki_ds_is_active_uri(msg, &s_set, &suri);
 }
 
 static int ds_parse_reply_codes()
@@ -1535,15 +1580,21 @@ static int w_ds_dsg_fetch_uri(sip_msg_t *msg, char *pset, char *puri)
 static int w_ds_oc_set_attrs(sip_msg_t *msg, char *pset, char *puri,
 		char *prval, char *ptval, char *psval)
 {
+	str s_set;
 	int iset;
 	str suri;
 	int irval;
 	int itval;
 	int isval;
 
-	if(fixup_get_ivalue(msg, (gparam_t *)pset, &iset) != 0) {
-		LM_ERR("cannot get set id param value\n");
-		return -1;
+	/* Try to get as string first, fall back to integer for backward compatibility */
+	if(fixup_get_svalue(msg, (gparam_t *)pset, &s_set) < 0) {
+		if(fixup_get_ivalue(msg, (gparam_t *)pset, &iset) != 0) {
+			LM_ERR("cannot get set id param value\n");
+			return -1;
+		}
+		/* Convert integer to string */
+		s_set.s = int2str(iset, &s_set.len);
 	}
 	if(fixup_get_svalue(msg, (gparam_t *)puri, &suri) != 0) {
 		LM_ERR("cannot get uri value\n");
@@ -1562,7 +1613,7 @@ static int w_ds_oc_set_attrs(sip_msg_t *msg, char *pset, char *puri,
 		return -1;
 	}
 
-	return ds_oc_set_attrs(msg, iset, &suri, irval, itval, isval);
+	return ds_oc_set_attrs(msg, &s_set, &suri, irval, itval, isval);
 }
 
 /**
@@ -1580,7 +1631,9 @@ static int pv_get_dsg(sip_msg_t *msg, pv_param_t *param, pv_value_t *res)
 	if(param == NULL) {
 		return -1;
 	}
-	dsg = ds_list_lookup(_pv_dsg_fetch_dg);
+	str s_dsg_fetch_dg;
+	s_dsg_fetch_dg.s = int2str(_pv_dsg_fetch_dg, &s_dsg_fetch_dg.len);
+	dsg = ds_list_lookup(&s_dsg_fetch_dg);
 
 	if(dsg == NULL) {
 		return pv_get_null(msg, param, res);
@@ -1707,7 +1760,7 @@ error:
 /**
  *
  */
-static int ki_ds_select(sip_msg_t *msg, int set, int alg)
+static int ki_ds_select(sip_msg_t *msg, str *set, int alg)
 {
 	return ds_select_dst_limit(msg, set, alg, 0xffff /* limit number of dst*/,
 			2 /*set no dst/uri*/);
@@ -1716,7 +1769,7 @@ static int ki_ds_select(sip_msg_t *msg, int set, int alg)
 /**
  *
  */
-static int ki_ds_select_limit(sip_msg_t *msg, int set, int alg, int limit)
+static int ki_ds_select_limit(sip_msg_t *msg, str *set, int alg, int limit)
 {
 	return ds_select_dst_limit(msg, set, alg, limit /* limit number of dst*/,
 			2 /*set no dst/uri*/);
@@ -1725,7 +1778,7 @@ static int ki_ds_select_limit(sip_msg_t *msg, int set, int alg, int limit)
 /**
  *
  */
-static int ki_ds_select_dst(sip_msg_t *msg, int set, int alg)
+static int ki_ds_select_dst(sip_msg_t *msg, str *set, int alg)
 {
 	return ds_select_dst_limit(
 			msg, set, alg, 0xffff /* limit number of dst*/, 0 /*set dst uri*/);
@@ -1734,7 +1787,7 @@ static int ki_ds_select_dst(sip_msg_t *msg, int set, int alg)
 /**
  *
  */
-static int ki_ds_select_dst_limit(sip_msg_t *msg, int set, int alg, int limit)
+static int ki_ds_select_dst_limit(sip_msg_t *msg, str *set, int alg, int limit)
 {
 	return ds_select_dst_limit(
 			msg, set, alg, limit /* limit number of dst*/, 0 /*set dst uri*/);
@@ -1743,7 +1796,7 @@ static int ki_ds_select_dst_limit(sip_msg_t *msg, int set, int alg, int limit)
 /**
  *
  */
-static int ki_ds_select_domain(sip_msg_t *msg, int set, int alg)
+static int ki_ds_select_domain(sip_msg_t *msg, str *set, int alg)
 {
 	return ds_select_dst_limit(msg, set, alg, 0xffff /* limit number of dst*/,
 			1 /*set host port*/);
@@ -1753,7 +1806,7 @@ static int ki_ds_select_domain(sip_msg_t *msg, int set, int alg)
  *
  */
 static int ki_ds_select_domain_limit(
-		sip_msg_t *msg, int set, int alg, int limit)
+		sip_msg_t *msg, str *set, int alg, int limit)
 {
 	return ds_select_dst_limit(
 			msg, set, alg, limit /* limit number of dst*/, 1 /*set host port*/);
@@ -1798,22 +1851,22 @@ static int ki_ds_set_domain(sip_msg_t *msg)
 static sr_kemi_t sr_kemi_dispatcher_exports[] = {
 	{ str_init("dispatcher"), str_init("ds_select"),
 		SR_KEMIP_INT, ki_ds_select,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_select_limit"),
 		SR_KEMIP_INT, ki_ds_select_limit,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_INT,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_INT,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_select_domain"),
 		SR_KEMIP_INT, ki_ds_select_domain,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_select_domain_limit"),
 		SR_KEMIP_INT, ki_ds_select_domain_limit,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_INT,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_INT,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_next_domain"),
@@ -1828,12 +1881,12 @@ static sr_kemi_t sr_kemi_dispatcher_exports[] = {
 	},
 	{ str_init("dispatcher"), str_init("ds_select_dst"),
 		SR_KEMIP_INT, ki_ds_select_dst,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_select_dst_limit"),
 		SR_KEMIP_INT, ki_ds_select_dst_limit,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_INT,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_INT,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_select_routes"),
@@ -1868,7 +1921,7 @@ static sr_kemi_t sr_kemi_dispatcher_exports[] = {
 	},
 	{ str_init("dispatcher"), str_init("ds_mark_addr"),
 		SR_KEMIP_INT, ki_ds_mark_addr,
-		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_STR,
+		{ SR_KEMIP_STR, SR_KEMIP_STR, SR_KEMIP_STR,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_is_from_lists"),
@@ -1883,12 +1936,12 @@ static sr_kemi_t sr_kemi_dispatcher_exports[] = {
 	},
 	{ str_init("dispatcher"), str_init("ds_is_from_list_mode"),
 		SR_KEMIP_INT, ki_ds_is_from_list_mode,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_is_from_list_uri"),
 		SR_KEMIP_INT, ki_ds_is_from_list_uri,
-		{ SR_KEMIP_INT, SR_KEMIP_INT, SR_KEMIP_STR,
+		{ SR_KEMIP_STR, SR_KEMIP_INT, SR_KEMIP_STR,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_load_update"),
@@ -1908,17 +1961,17 @@ static sr_kemi_t sr_kemi_dispatcher_exports[] = {
 	},
 	{ str_init("dispatcher"), str_init("ds_list_exists"),
 		SR_KEMIP_INT, ki_ds_list_exists,
-		{ SR_KEMIP_INT, SR_KEMIP_NONE, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_NONE, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_is_active"),
 		SR_KEMIP_INT, ki_ds_is_active,
-		{ SR_KEMIP_INT, SR_KEMIP_NONE, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_NONE, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ str_init("dispatcher"), str_init("ds_is_active_uri"),
 		SR_KEMIP_INT, ki_ds_is_active_uri,
-		{ SR_KEMIP_INT, SR_KEMIP_STR, SR_KEMIP_NONE,
+		{ SR_KEMIP_STR, SR_KEMIP_STR, SR_KEMIP_NONE,
 			SR_KEMIP_NONE, SR_KEMIP_NONE, SR_KEMIP_NONE }
 	},
 	{ {0, 0}, {0, 0}, 0, NULL, { 0, 0, 0, 0, 0, 0 } }
@@ -2193,6 +2246,7 @@ static void dispatcher_rpc_list(rpc_t *rpc, void *ctx)
 static void dispatcher_rpc_set_state_helper(rpc_t *rpc, void *ctx, int mattr)
 {
 	int group;
+	str s_group;
 	str dest;
 	str state;
 	int stval;
@@ -2201,6 +2255,9 @@ static void dispatcher_rpc_set_state_helper(rpc_t *rpc, void *ctx, int mattr)
 		rpc->fault(ctx, 500, "Invalid Parameters");
 		return;
 	}
+
+	/* Convert group integer to string */
+	s_group.s = int2str(group, &s_group.len);
 	if(state.len <= 0 || state.s == NULL) {
 		LM_ERR("bad state value\n");
 		rpc->fault(ctx, 500, "Invalid State Parameter");
@@ -2232,15 +2289,15 @@ static void dispatcher_rpc_set_state_helper(rpc_t *rpc, void *ctx, int mattr)
 	}
 
 	if(dest.len == 3 && strncmp(dest.s, "all", 3) == 0) {
-		ds_reinit_state_all(group, stval);
+		ds_reinit_state_all(&s_group, stval);
 	} else {
 		if(mattr == 1) {
-			if(ds_reinit_duid_state(group, &dest, stval) < 0) {
+			if(ds_reinit_duid_state(&s_group, &dest, stval) < 0) {
 				rpc->fault(ctx, 500, "State Update Failed");
 				return;
 			}
 		} else {
-			if(ds_reinit_state(group, &dest, NULL, stval) < 0) {
+			if(ds_reinit_state(&s_group, &dest, NULL, stval) < 0) {
 				rpc->fault(ctx, 500, "State Update Failed");
 				return;
 			}
@@ -2325,6 +2382,7 @@ static const char *dispatcher_rpc_add_doc[2] = {
 static void dispatcher_rpc_add(rpc_t *rpc, void *ctx)
 {
 	int group, flags, priority, nparams;
+	str s_group;
 	str dest;
 	str attrs = STR_NULL;
 
@@ -2354,7 +2412,10 @@ static void dispatcher_rpc_add(rpc_t *rpc, void *ctx)
 		attrs.len = 0;
 	}
 
-	if(ds_add_dst(group, &dest, flags, priority, &attrs) != 0) {
+	/* Convert group integer to string */
+	s_group.s = int2str(group, &s_group.len);
+
+	if(ds_add_dst(&s_group, &dest, flags, priority, &attrs) != 0) {
 		rpc->fault(ctx, 500, "Adding dispatcher dst failed");
 		return;
 	}
@@ -2372,6 +2433,7 @@ static const char *dispatcher_rpc_remove_doc[2] = {
 static void dispatcher_rpc_remove(rpc_t *rpc, void *ctx)
 {
 	int group;
+	str s_group;
 	str dest;
 
 	if(ds_rpc_reload_time == NULL) {
@@ -2392,7 +2454,10 @@ static void dispatcher_rpc_remove(rpc_t *rpc, void *ctx)
 		return;
 	}
 
-	if(ds_remove_dst(group, &dest) != 0) {
+	/* Convert group integer to string */
+	s_group.s = int2str(group, &s_group.len);
+
+	if(ds_remove_dst(&s_group, &dest) != 0) {
 		rpc->fault(ctx, 500, "Removing dispatcher dst failed");
 		return;
 	}

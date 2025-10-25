@@ -33,11 +33,11 @@
 
 #include "../../core/sr_module.h"
 
-typedef int (*ds_select_dst_f)(struct sip_msg *msg, int set, int alg, int mode);
+typedef int (*ds_select_dst_f)(struct sip_msg *msg, str *set, int alg, int mode);
 typedef int (*ds_next_dst_f)(struct sip_msg *msg, int mode);
 typedef int (*ds_mark_dst_f)(struct sip_msg *msg, int mode);
 
-typedef int (*ds_is_from_list_f)(struct sip_msg *_m, int group);
+typedef int (*ds_is_from_list_f)(struct sip_msg *_m, str *group);
 
 /* clang-format off */
 typedef struct dispatcher_api {
